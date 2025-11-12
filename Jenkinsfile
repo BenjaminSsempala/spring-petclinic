@@ -1,10 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'docker:24.0-dind'
-            args '--privileged'
-        }
-    }
+    agent any
 
     environment {
         DOCKER_HUB_CREDENTIALS = credentials('docker-hub')
@@ -18,12 +13,41 @@ pipeline {
             }
         }
 
+        // stage('Build Docker Image') {
+        //     steps {
+        //         script {
+        //             sh '''
+        //             docker build -t benjaminssempala/petclinic2:latest .
+        //             '''
+        //         }
+        //     }
+        // }
         stage('Build Docker Image') {
+            agent {
+                docker {
+                    // Use the Docker CLI image with Docker-in-Docker enabled
+                    image 'docker:24.0-dind'
+                    args '--privileged'
+                    reuseNode true   // keep the same workspace mounted
+                }
+            }
             steps {
                 script {
-                    sh '''
-                    docker build -t benjaminssempala/petclinic2:latest .
-                    '''
+                    // Use the Docker Pipeline plugin to build and push
+                    def customImage = docker.build("benjaminssempala/petclinic2:${env.BUILD_ID}", ".")
+                    
+                    // Optional: run commands inside the image
+                    customImage.inside {
+                        echo "Running tests inside Docker image..."
+                        sh 'java -version'
+                        sh 'mvn test'
+                    }
+                    
+                    // Push to Docker Hub
+                    docker.withRegistry('https://index.docker.io/v1/', 'docker-hub') {
+                        customImage.push()           // push build tag
+                        customImage.push('latest')   // push latest tag
+                    }
                 }
             }
         }
