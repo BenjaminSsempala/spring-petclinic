@@ -1,5 +1,10 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'docker:24.0-dind'
+            args '--privileged'
+        }
+    }
 
     environment {
         DOCKER_HUB_CREDENTIALS = credentials('docker-hub')
