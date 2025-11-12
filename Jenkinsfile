@@ -2,13 +2,12 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_HUB_CREDENTIALS = credentials('dockerhub')
-        GITHUB_TOKEN = credentials('github-token')
-        KUBECONFIG = credentials('kubeconfig')
+        DOCKER_HUB_CREDENTIALS = credentials('docker-hub')
+        SONARQUBE_ENV = credentials('sonarqube-token') 
     }
 
     stages {
-        stage('Clone Repo') {
+        stage('Checkout') {
             steps {
                 git branch: 'main', url: 'https://github.com/BenjaminSsempala/spring-petclinic.git'
             }
@@ -17,27 +16,51 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh """
+                    sh '''
                     docker build -t benjaminssempala/petclinic2:latest .
-                    docker login -u ${DOCKER_HUB_CREDENTIALS_USR} -p ${DOCKER_HUB_CREDENTIALS_PSW}
-                    docker push benjaminssempala/petclinic2:latest
-                    """
+                    '''
                 }
             }
         }
 
-        stage('Deploy to Kubernetes.') {
-            steps { 
+        stage('Test') {
+            steps {
                 script {
-                    writeFile file: 'kubeconfig', text: "${KUBECONFIG}"
-                    withEnv(["KUBECONFIG=${WORKSPACE}/kubeconfig"]) {
-                        sh """
-                        kubectl apply -f k8s/deployment.yaml
-                        kubectl rollout status deployment/<your-app-deployment> -n <your-namespace>
-                        """
-                    }
+                    echo "Running tests..."
+                    sh 'mvn test' 
                 }
             }
+        }
+
+        // stage('Static Analysis (SonarQube)') {
+        //     steps {
+        //         script {
+        //             echo "Running SonarQube analysis..."
+        //             withSonarQubeEnv('sonarqube-server') {
+        //                 sh 'mvn sonar:sonar'
+        //             }
+        //         }
+        //     }
+        // }
+
+        stage('Push to Docker Hub') {
+            steps {
+                script {
+                    sh '''
+                    echo "${DOCKER_HUB_CREDENTIALS_PSW}" | docker login -u "${DOCKER_HUB_CREDENTIALS_USR}" --password-stdin
+                    docker push benjaminssempala/petclinic2:latest
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Build and Push successful!"
+        }
+        failure {
+            echo "Build failed."
         }
     }
 }
