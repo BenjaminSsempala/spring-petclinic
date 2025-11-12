@@ -26,8 +26,8 @@ pipeline {
             }
         }
 
-        stage('Deploy to Kubernetes') {
-            steps {
+        stage('Deploy to Kubernetes.') {
+            steps { 
                 script {
                     writeFile file: 'kubeconfig', text: "${KUBECONFIG}"
                     withEnv(["KUBECONFIG=${WORKSPACE}/kubeconfig"]) {
