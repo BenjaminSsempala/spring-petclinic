@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DOCKER_HUB_CREDENTIALS = credentials('docker-hub')
-        SONARQUBE_ENV = credentials('sonarqube-token') 
+        // SONARQUBE_ENV = credentials('sonarqube-token') 
     }
 
     stages {
