@@ -5,21 +5,21 @@ pipeline {
         kubernetes {
             // Define the pod structure using YAML
             yaml """
-apiVersion: v1
-kind: Pod
-spec:
-  containers:
-  - name: jnlp
-    image: jenkins/maven:latest
-    command: ['sleep']
-    args: ['999999'] # <-- FIXED: Was '//'
-    tty: true
-  - name: kaniko
-    # We use the debug tag because it has a shell
-    image: gcr.io/kaniko-project/executor:latest-debug
-    command: ['cat'] # <-- FIXED: Was '//'
-    tty: true
-"""
+                apiVersion: v1
+                kind: Pod
+                spec:
+                containers:
+                - name: jnlp
+                    image: jenkins/maven:latest
+                    command: ['sleep']
+                    args: ['999999'] # <-- FIXED: Was '//'
+                    tty: true
+                - name: kaniko
+                    # We use the debug tag because it has a shell
+                    image: gcr.io/kaniko-project/executor:latest-debug
+                    command: ['cat'] # <-- FIXED: Was '//'
+                    tty: true
+                """
             // The 'jnlp' (maven) container will be used for all
             // steps by default, unless we specify another.
             defaultContainer 'jnlp'
