@@ -12,6 +12,23 @@ pipeline {
                 git branch: 'main', url: 'https://github.com/BenjaminSsempala/spring-petclinic.git'
             }
         }
+         stage('Quick docker check') {
+            steps {
+                sh '''
+                echo "WHOAMI: $(whoami)"
+                echo "--- PATH ---"
+                echo $PATH
+                echo "--- which/docker version ---"
+                which docker || true
+                docker --version 2>/dev/null || echo "DOCKER_MISSING"
+                echo "--- docker.sock ---"
+                if [ -S /var/run/docker.sock ]; then ls -l /var/run/docker.sock; else echo "NO_DOCKER_SOCK"; fi
+                echo "--- containerd socket? ---"
+                if [ -S /run/containerd/containerd.sock ]; then ls -l /run/containerd/containerd.sock; else echo "NO_CONTAINERD_SOCK"; fi
+                '''
+            }
+        }
+
 
         // stage('Build Docker Image') {
         //     steps {
