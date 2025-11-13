@@ -26,7 +26,7 @@ pipeline {
             agent {
                 docker {
                     // Use the Docker CLI image with Docker-in-Docker enabled
-                    image 'docker:24.0-dind'
+                    image 'node:24.11.0-alpine3.22'
                     args '--privileged'
                     reuseNode true   // keep the same workspace mounted
                 }
@@ -55,7 +55,7 @@ pipeline {
         stage('Test') {
             steps {
                 script {
-                    echo "Running tests..."
+                    echo "Running tests...."
                     sh 'mvn test' 
                 }
             }
