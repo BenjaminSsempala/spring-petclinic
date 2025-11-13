@@ -1,10 +1,9 @@
 pipeline {
     // 1. DEFINE A KUBERNETES AGENT POD
-    // This pod has two containers:
-    // - 'jnlp' (with Maven) for checkout and testing.
-    // - 'kaniko' for building the image.
+    // (These Groovy comments are fine)
     agent {
         kubernetes {
+            // Define the pod structure using YAML
             yaml """
 apiVersion: v1
 kind: Pod
@@ -13,12 +12,12 @@ spec:
   - name: jnlp
     image: jenkins/maven:latest
     command: ['sleep']
-    args: ['999999']
+    args: ['999999'] # <-- FIXED: Was '//'
     tty: true
   - name: kaniko
     # We use the debug tag because it has a shell
     image: gcr.io/kaniko-project/executor:latest-debug
-    command: ['cat'] // Keeps the container alive
+    command: ['cat'] # <-- FIXED: Was '//'
     tty: true
 """
             // The 'jnlp' (maven) container will be used for all
@@ -51,7 +50,6 @@ spec:
         }
 
         // 2. THIS IS THE NEW BUILD STAGE
-        // We no longer install Docker. We just use Kaniko.
         stage('Build and Push with Kaniko') {
             // 3. Tell Jenkins to run these steps in the 'kaniko' container
             steps {
