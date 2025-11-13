@@ -38,7 +38,7 @@ pipeline {
                 script {
                     sh """
                     echo "Building Docker image using nerdctl..."
-                    sudo nerdctl build -t ${IMAGE_NAME} .
+                    nerdctl build -t ${IMAGE_NAME} .
                     """
                 }
             }
@@ -58,9 +58,9 @@ pipeline {
                 script {
                     sh """
                     echo "Logging in to Docker Hub..."
-                    echo "${DOCKER_HUB_CREDENTIALS_PSW}" | sudo nerdctl login -u "${DOCKER_HUB_CREDENTIALS_USR}" --password-stdin
+                    echo "${DOCKER_HUB_CREDENTIALS_PSW}" | nerdctl login -u "${DOCKER_HUB_CREDENTIALS_USR}" --password-stdin
                     echo "Pushing image to Docker Hub..."
-                    sudo nerdctl push ${IMAGE_NAME}
+                     nerdctl push ${IMAGE_NAME}
                     """
                 }
             }
@@ -68,7 +68,7 @@ pipeline {
 
         stage('Cleanup') {
             steps {
-                sh "sudo nerdctl rmi ${IMAGE_NAME} || true"
+                sh " nerdctl rmi ${IMAGE_NAME} || true"
             }
         }
     }
