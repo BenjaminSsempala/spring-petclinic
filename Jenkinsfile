@@ -1,97 +1,86 @@
 pipeline {
-    agent any
+    // 1. DEFINE A KUBERNETES AGENT POD
+    // This pod has two containers:
+    // - 'jnlp' (with Maven) for checkout and testing.
+    // - 'kaniko' for building the image.
+    agent {
+        kubernetes {
+            yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: jnlp
+    image: jenkins/maven:latest
+    command: ['sleep']
+    args: ['999999']
+    tty: true
+  - name: kaniko
+    # We use the debug tag because it has a shell
+    image: gcr.io/kaniko-project/executor:latest-debug
+    command: ['cat'] // Keeps the container alive
+    tty: true
+"""
+            // The 'jnlp' (maven) container will be used for all
+            // steps by default, unless we specify another.
+            defaultContainer 'jnlp'
+        }
+    }
 
     environment {
+        // We will use these credentials in the Kaniko stage
         DOCKER_HUB_CREDENTIALS = credentials('docker-hub')
-        // SONARQUBE_ENV = credentials('sonarqube-token') 
     }
 
     stages {
         stage('Checkout') {
+            // This runs in the default 'jnlp' container
             steps {
                 git branch: 'main', url: 'https://github.com/BenjaminSsempala/spring-petclinic.git'
             }
         }
 
-        // stage('Build Docker Image') {
-        //     steps {
-        //         script {
-        //             sh '''
-        //             docker build -t benjaminssempala/petclinic2:latest .
-        //             '''
-        //         }
-        //     }
-        // }
-
-        stage('Build Docker Image') {
-            steps {
-                script {
-                    sh '''
-                    echo "🐳 Checking Docker installation..."
-
-                    if ! command -v docker >/dev/null 2>&1; then
-                    echo "📦 Installing Docker..."
-                    apt-get update -y
-                    apt-get install -y ca-certificates curl gnupg lsb-release
-
-                    # Add Docker’s official GPG key and repository
-                    mkdir -p /etc/apt/keyrings
-                    curl -fsSL https://download.docker.com/linux/$(. /etc/os-release; echo "$ID")/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-                    echo \
-                        "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$(. /etc/os-release; echo "$ID") \
-                        $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
-
-                    sudo apt-get update -y
-                    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-                    echo "✅ Docker installed successfully!"
-                    else
-                    echo "✅ Docker already installed."
-                    docker --version
-                    fi
-
-                    echo "🏗️ Building Docker image..."
-                    docker build -t benjaminssempala/petclinic2:latest .
-
-                    echo "✅ Build complete!"
-                    '''
-                }
-            }
-        }
-
-        
-
         stage('Test') {
+            // This also runs in the default 'jnlp' (maven) container
             steps {
                 script {
                     echo "Running tests..."
-                    sh 'mvn test' 
+                    sh 'mvn test'
                 }
             }
         }
 
-        // stage('Static Analysis (SonarQube)') {
-        //     steps {
-        //         script {
-        //             echo "Running SonarQube analysis..."
-        //             withSonarQubeEnv('sonarqube-server') {
-        //                 sh 'mvn sonar:sonar'
-        //             }
-        //         }
-        //     }
-        // }
-
-        stage('Push to Docker Hub') {
+        // 2. THIS IS THE NEW BUILD STAGE
+        // We no longer install Docker. We just use Kaniko.
+        stage('Build and Push with Kaniko') {
+            // 3. Tell Jenkins to run these steps in the 'kaniko' container
             steps {
-                script {
-                    sh '''
-                    echo "${DOCKER_HUB_CREDENTIALS_PSW}" | docker login -u "${DOCKER_HUB_CREDENTIALS_USR}" --password-stdin
-                    docker push benjaminssempala/petclinic2:latest
-                    '''
+                container('kaniko') {
+                    script {
+                        sh '''
+                        echo "🏗️ Building and pushing image with Kaniko..."
+                        
+                        # 4. Create the Docker config.json for Kaniko
+                        # This tells Kaniko how to log in to Docker Hub
+                        echo "Creating Docker config..."
+                        AUTH=$(echo -n "${DOCKER_HUB_CREDENTIALS_USR}:${DOCKER_HUB_CREDENTIALS_PSW}" | base64)
+                        mkdir -p /kaniko/.docker
+                        echo "{\"auths\":{\"https://index.docker.io/v1/\":{\"auth\":\"${AUTH}\"}}}" > /kaniko/.docker/config.json
+                        
+                        # 5. Run the Kaniko executor
+                        # It reads the Dockerfile, builds, and pushes
+                        /kaniko/executor \
+                            --dockerfile=Dockerfile \
+                            --context=dir://. \
+                            --destination=benjaminssempala/petclinic2:latest
+                        
+                        echo "✅ Kaniko build complete!"
+                        '''
+                    }
                 }
             }
         }
-    }
+    } // end stages
 
     post {
         success {
