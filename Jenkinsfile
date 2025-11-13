@@ -20,7 +20,7 @@ pipeline {
                 # Ensure containerd socket exists
                 if [ ! -S /run/containerd/containerd.sock ]; then
                   echo "⚠️ containerd socket not found, trying to restart containerd"
-                  sudo systemctl restart containerd || true
+                   systemctl restart containerd || true
                   sleep 5
                 fi
 
