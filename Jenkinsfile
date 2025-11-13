@@ -3,110 +3,82 @@ pipeline {
 
     environment {
         DOCKER_HUB_CREDENTIALS = credentials('docker-hub')
-        // SONARQUBE_ENV = credentials('sonarqube-token') 
+        IMAGE_NAME = "benjaminssempala/petclinic2:latest"
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 git branch: 'main', url: 'https://github.com/BenjaminSsempala/spring-petclinic.git'
             }
         }
-         stage('Quick docker check') {
+
+        stage('Check Container Runtime') {
             steps {
                 sh '''
                 echo "WHOAMI: $(whoami)"
                 echo "--- PATH ---"
                 echo $PATH
-                echo "--- which/docker version ---"
-                which docker || true
-                docker --version 2>/dev/null || echo "DOCKER_MISSING"
-                echo "--- docker.sock ---"
-                if [ -S /var/run/docker.sock ]; then ls -l /var/run/docker.sock; else echo "NO_DOCKER_SOCK"; fi
-                echo "--- containerd socket? ---"
-                if [ -S /run/containerd/containerd.sock ]; then ls -l /run/containerd/containerd.sock; else echo "NO_CONTAINERD_SOCK"; fi
+                echo "--- Checking for Docker or nerdctl ---"
+                which docker && docker --version || echo "Docker not found"
+                which nerdctl && nerdctl --version || echo "nerdctl not found"
+                echo "--- Checking containerd socket ---"
+                if [ -S /run/containerd/containerd.sock ]; then
+                    echo "Containerd socket available."
+                else
+                    echo "❌ containerd socket missing!"
+                fi
                 '''
             }
         }
 
-
-        // stage('Build Docker Image') {
-        //     steps {
-        //         script {
-        //             sh '''
-        //             docker build -t benjaminssempala/petclinic2:latest .
-        //             '''
-        //         }
-        //     }
-        // }
-        stage('Build Docker Image') {
-            agent {
-                docker {
-                    // Use the Docker CLI image with Docker-in-Docker enabled
-                    image 'node:24.11.0-alpine3.22'
-                    args '--privileged'
-                    reuseNode true   // keep the same workspace mounted
-                }
-            }
+        stage('Build Image') {
             steps {
                 script {
-                    // Use the Docker Pipeline plugin to build and push
-                    def customImage = docker.build("benjaminssempala/petclinic2:${env.BUILD_ID}", ".")
-                    
-                    // Optional: run commands inside the image
-                    customImage.inside {
-                        echo "Running tests inside Docker image..."
-                        sh 'java -version'
-                        sh 'mvn test'
-                    }
-                    
-                    // Push to Docker Hub
-                    docker.withRegistry('https://index.docker.io/v1/', 'docker-hub') {
-                        customImage.push()           // push build tag
-                        customImage.push('latest')   // push latest tag
-                    }
+                    sh """
+                    echo "Building Docker image using nerdctl..."
+                    sudo nerdctl build -t ${IMAGE_NAME} .
+                    """
                 }
             }
         }
 
-        stage('Test') {
+        stage('Run Tests') {
             steps {
                 script {
-                    echo "Running tests...."
-                    sh 'mvn test' 
+                    echo "Running Maven tests..."
+                    sh 'mvn test'
                 }
             }
         }
 
-        // stage('Static Analysis (SonarQube)') {
-        //     steps {
-        //         script {
-        //             echo "Running SonarQube analysis..."
-        //             withSonarQubeEnv('sonarqube-server') {
-        //                 sh 'mvn sonar:sonar'
-        //             }
-        //         }
-        //     }
-        // }
-
-        stage('Push to Docker Hub') {
+        stage('Push Image') {
             steps {
                 script {
-                    sh '''
-                    echo "${DOCKER_HUB_CREDENTIALS_PSW}" | docker login -u "${DOCKER_HUB_CREDENTIALS_USR}" --password-stdin
-                    docker push benjaminssempala/petclinic2:latest
-                    '''
+                    sh """
+                    echo "Logging in to Docker Hub..."
+                    echo "${DOCKER_HUB_CREDENTIALS_PSW}" | sudo nerdctl login -u "${DOCKER_HUB_CREDENTIALS_USR}" --password-stdin
+                    echo "Pushing image to Docker Hub..."
+                    sudo nerdctl push ${IMAGE_NAME}
+                    """
                 }
+            }
+        }
+
+        stage('Cleanup') {
+            steps {
+                sh "sudo nerdctl rmi ${IMAGE_NAME} || true"
             }
         }
     }
 
     post {
         success {
-            echo "Build and Push successful!"
+            echo "Build, Test, and Push successful!"
         }
         failure {
-            echo "Build failed."
+            echo "Build failed. Check logs above."
         }
     }
 }
