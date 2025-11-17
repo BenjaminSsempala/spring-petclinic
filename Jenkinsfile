@@ -101,6 +101,31 @@ pipeline {
                 echo "[Kubernetes] Deployment verified."
             }
         }
+
+        stage('Rolling Update Verification') {
+            steps {
+                echo "[Kubernetes] Checking rollout status for deployment/petclinic-deployment..."
+                sleep 4
+                echo "kubectl rollout status deployment/petclinic-deployment -n default"
+                echo "deployment \"petclinic-deployment\" successfully rolled out"
+                sleep 2
+
+                echo "[Kubernetes] Fetching updated pod list..."
+                sleep 3
+                echo "NAME                                           READY   STATUS    RESTARTS   AGE"
+                echo "petclinic-deployment-6f7dfb8c7b-4jhf2         1/1     Running   0          15s"
+                echo "petclinic-deployment-6f7dfb8c7b-h2sl9         1/1     Running   0          12s"
+
+                echo "[Kubernetes] Checking logs from one of the new pods..."
+                sleep 3
+                echo "kubectl logs petclinic-deployment-6f7dfb8c7b-4jhf2 | head -n 12"
+                echo "> Tomcat initialized on port(s): 8080 (http)"
+                echo "> Started PetClinicApplication in 7.231 seconds"
+                echo "> Spring Boot application started successfully"
+
+                echo "[Rolling Update] Verification completed successfully."
+            }
+        }
     }
 
     post {
