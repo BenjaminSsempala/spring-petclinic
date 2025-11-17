@@ -5,7 +5,7 @@ pipeline {
         DOCKER_HUB_CREDENTIALS = credentials('docker-hub')
         GITHUB_TOKEN = credentials('gh-token')
         KUBE_CONFIG = credentials('kube-config')
-        IMAGE_NAME = "benjaminssempala/petclinic2"
+        IMAGE_NAME = "benjaminssempala/petclinic"
         SONARQUBE_ENV = credentials('sonarqube-token')
     }
 

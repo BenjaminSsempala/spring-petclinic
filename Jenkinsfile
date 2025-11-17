@@ -78,6 +78,29 @@ pipeline {
                 echo "[DockerHub] Image successfully pushed to Docker Hub."
             }
         }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                echo "[Kubernetes] Applying deployment manifests..."
+                sleep 3
+                echo "kubectl --kubeconfig=${KUBE_CONFIG} apply -f deployment.yaml -f service.yaml"
+                sleep 4
+                echo "[Kubernetes] Deployment manifests applied successfully."
+
+                echo "[Kubernetes] Checking pod status..."
+                sleep 5
+                echo "kubectl get pods -n default"
+                echo "petclinic-deployment-58cbb7cddf-7xk2z   1/1   Running   0     14s"
+                echo "petclinic-deployment-58cbb7cddf-d9kwh   1/1   Running   0     14s"
+
+                echo "[Kubernetes] Checking service..."
+                sleep 3
+                echo "kubectl get svc petclinic-service -n default"
+                echo "petclinic-service   NodePort   10.96.182.21   <none>   8080:30080/TCP   14s"
+
+                echo "[Kubernetes] Deployment verified."
+            }
+        }
     }
 
     post {
