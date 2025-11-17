@@ -26,7 +26,7 @@ pipeline {
         stage('Build') {
             steps {
                 echo "[Build] Initializing Docker build environment..."
-                sleep time: 140, unit: 'SECONDS'
+                sleep time: 30, unit: 'SECONDS'
 
                 echo "[Build] Building Docker image: ${IMAGE_NAME}:${COMMIT_ID}"
                 echo "docker build -t ${IMAGE_NAME}:${COMMIT_ID} ."
@@ -54,7 +54,7 @@ pipeline {
         stage('Static Analysis (SonarQube)') {
             steps {
                 echo "[SonarQube] Starting source code analysis..."
-                sleep time: 40, unit: 'SECONDS'
+                sleep time: 34, unit: 'SECONDS'
 
                 echo "sonar-scanner -Dsonar.projectKey=sample -Dsonar.language=js"
                 sleep time: 7, unit: 'SECONDS'
