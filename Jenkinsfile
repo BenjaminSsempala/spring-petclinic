@@ -26,7 +26,7 @@ pipeline {
         stage('Build') {
             steps {
                 echo "[Build] Initializing Docker build environment..."
-                sleep time: 40, unit: 'SECONDS'
+                sleep time: 140, unit: 'SECONDS'
 
                 echo "[Build] Building Docker image: ${IMAGE_NAME}:${COMMIT_ID}"
                 echo "docker build -t ${IMAGE_NAME}:${COMMIT_ID} ."
